@@ -1,0 +1,14 @@
+# netlify.toml
+# Place this file in your repo root alongside index.html
+
+[[edge_functions]]
+  path = "/api/claude"
+  function = "claude-proxy"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
