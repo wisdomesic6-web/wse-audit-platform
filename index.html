@@ -6800,13 +6800,14 @@ function processPayment() {
 // ═══════════════════════════════════════════════════════════════
 // ENGINE 6: PROFILE DASHBOARD UPGRADE
 // ═══════════════════════════════════════════════════════════════
-function renderProfileStats() {
+async function renderProfileStats() {
   const user     = window.CURRENT_USER;
   if (!user) return;
 
   const plan     = user.plan || 'free';
-  const history  = getAuditHistory().filter(h => h.userId === user.id || h.userId === 'guest');
-  const members  = getTeamMembers();
+  const rawHistory = await Promise.resolve(getAuditHistory()).catch(() => []);
+  const history  = Array.isArray(rawHistory) ? rawHistory.filter(h => h.userId === user.id || h.userId === 'guest' || !h.userId) : [];
+  const members  = typeof getTeamMembers === 'function' ? (await Promise.resolve(getTeamMembers()).catch(() => [])) : [];
   const payments = JSON.parse(localStorage.getItem('wse_payments') || '[]').filter(p => p.userId === user.id);
   const limit    = PLAN_LIMITS[plan];
 
