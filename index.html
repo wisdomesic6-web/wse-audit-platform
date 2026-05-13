@@ -2379,8 +2379,9 @@ async function handleParsedData(rawData, filename) {
     const ref     = String(row[colMap.ref] || `TXN-${String(i + 1).padStart(6, '0')}`).trim();
     const account = row[colMap.account] || autoClassifyAccount(desc);
 
-    // Deduplicate
-    const dupeKey = `${date}_${desc}_${Math.round((debit + credit) * 100)}`;
+    // Deduplicate — key includes DR/CR direction so paired journal entries
+    // (same date, narration, amount but one DR and one CR) are never collapsed.
+    const dupeKey = `${date}_${desc}_DR${Math.round(debit * 100)}_CR${Math.round(credit * 100)}`;
     const isDupe  = seen.has(dupeKey);
     if (!isDupe) seen.add(dupeKey);
 
@@ -3286,11 +3287,12 @@ async function runFraudDetectionAsync(transactions) {
   await processInChunks(transactions, 500, (t) => {
     const amt = t.debit + t.credit;
 
-    // R1: Exact duplicates (date + desc + amount)
-    const dupeKey = `${t.date}_${t.desc}_${Math.round(amt * 100)}`;
+    // R1: Exact duplicates — key includes ref + DR/CR direction to avoid
+    // false positives from paired double-entry journal rows.
+    const dupeKey = `${t.date}_${t.ref}_DR${Math.round(t.debit*100)}_CR${Math.round(t.credit*100)}`;
     if (seen[dupeKey]) {
       flags.push({ ...t, flagType: 'Duplicate Transaction', risk: 'HIGH',
-        finding: `Identical transaction (${fmt(amt)}) on ${t.date} duplicated. Possible double-payment or system error.` });
+        finding: `Identical transaction (${fmt(t.debit + t.credit)}) on ${t.date} duplicated. Possible double-payment or system error.` });
     } else { seen[dupeKey] = true; }
 
     // R2: Threshold avoidance
@@ -9131,7 +9133,7 @@ handleParsedData = async function(rawData, filename) {
     const ref     = String(row[colMap.ref] || 'TXN-' + String(i+1).padStart(6,'0')).trim();
     const account = row[colMap.account] || autoClassifyAccount(desc);
 
-    const dupeKey = date + '_' + desc + '_' + Math.round((debit+credit)*100);
+    const dupeKey = date + '_' + ref + '_DR' + Math.round(debit*100) + '_CR' + Math.round(credit*100);
     const isDupe  = seen.has(dupeKey);
     if (!isDupe) seen.add(dupeKey);
 
